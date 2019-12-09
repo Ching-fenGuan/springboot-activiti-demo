@@ -16,7 +16,7 @@
 	        <td width="10%">版本</td>
 	        <td width="20%">模型名称</td>
 	        <td width="20%">模型key</td>
-            <td width="20%">部署ID</td>
+            <td width="20%">部署ID(发布后有值</td>
 	        <td width="40%">操作</td>
 	    </tr>
 	        <#list modelList as model>
@@ -29,9 +29,9 @@
 	            <td width="40%">
 	             <a href="/editor?modelId=${model.id}">编辑</a>
 	             <a href="/publish?modelId=${model.id}">发布</a>
-	             <a href="/delete?modelId=${model.id}">删除</a>
 				 <a href="/copy?modelId=${model.id}">复制</a>
-                 <a href="/revokePublish?modelId=${model.id}">删除流程定义</a>
+					<a href="/delete?modelId=${model.id}">删除(强制删除流程定义)</a>
+                 <a href="/revokePublish?modelId=${model.id}">删除流程定义(非强制)</a>
 	            </td>
 	        </tr>
 	       </#list>
@@ -43,7 +43,7 @@
 <br>
 
 <h5>--------------------------------------- 流程图跟踪 -----------------------------------------</h5>
-<img src="/process/history/getProcessImg/7501" width="900px" height="500px">
+<img src="/process/history/getProcessImg/2501" width="900px" height="500px">
 
 </body>
 </html>
