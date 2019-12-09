@@ -73,25 +73,29 @@ public class DatasetProcessService {
     public TaskVo applyDataSet(ApplyDatasetInfo datasetBaseInfo, HttpServletRequest request) {
         String currentUserName = SessionUtils.getCurrentUserName(request);
 
-        // TODO 获取当前用户相关的流程实例，如果当前用户没有创建的流程，则使用默认流程
+        // 需要启动的流程定义key
         String processDefKey = DEFAULT_DS_PROCESS_KEY;
 
-        // 1、启动流程实例
+        // 1、通过流程定义的key启动流程实例
         ProcessInstance processInstance = processRuntimeService.startProcessInstanceByKey(processDefKey);
 
-        // 2、新增流程实例和业务关联信息
+        // 2、将启动的流程实例与业务信息关联
         ProcessDataset processDataset = new ProcessDataset();
         processDataset.setDatasetId(datasetBaseInfo.getDataSetId());
         processDataset.setDatasetName(datasetBaseInfo.getDataSetName());
         processDataset.setCreator(currentUserName);
+        //优先级
         processDataset.setPriority(datasetBaseInfo.getPriority().getCode());
+        //流程实例id
         processDataset.setProcInstId(processInstance.getId());
+        //流程状态
         processDataset.setProcessStatus(ProcessStatusEnum.ONGOING.getCode());
         processDatasetMapper.insertSelective(processDataset);
 
         // 3、如果是默认审批流程实例，则设置数据集创建人为审批人
         Task task = processTaskService.getTaskByProInstId(processInstance.getId()).get(0);
         if (StringUtils.equals(processInstance.getProcessDefinitionKey(), DEFAULT_DS_PROCESS_KEY)) {
+            //指派任务
             processTaskService.assigneeTask(task.getId(), datasetBaseInfo.getDataSetCreator());
         }
 
@@ -107,9 +111,10 @@ public class DatasetProcessService {
     @Transactional(rollbackFor = Exception.class)
     public void approvalTask(ProcessApproval processApproval, HttpServletRequest request) {
         String currentUser = SessionUtils.getCurrentUserName(request);
-        // 获取任务信息
+        // 根据任务id获取任务信息
         Task task = processTaskService.getTaskByTaskId(processApproval.getTaskId());
 
+        //验证任务是否已经完成
         validateTaskFinished(task);
 
         // 获取任务指定处理人
@@ -128,7 +133,7 @@ public class DatasetProcessService {
         // 记录当前任务审批相关信息
         saveTaskApprovalInfo(processApproval, currentUser, task);
 
-        // 更新流程状态
+        // 更新流程状态(判断流程是否已经结束，如果流程已经结束，则更新流程状态)
         updateProcessStatus(task.getProcessInstanceId());
     }
 

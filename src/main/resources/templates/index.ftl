@@ -39,8 +39,9 @@
 <br>
 <br>
 
-<h5>--------------- 流程图 --------------------------</h5>
-<img src="/process/history/getProcessImg/72501" width="500px" height="150px">
+<h5>--------------------------------------- 流程图跟踪 -----------------------------------------</h5>
+<img src="/process/history/getProcessImg/40001" width="900px" height="500px">
+<img src="/process/history/getProcessImg/57501" width="900px" height="500px">
 
 </body>
 </html>

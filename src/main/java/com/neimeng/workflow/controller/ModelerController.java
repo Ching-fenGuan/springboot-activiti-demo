@@ -133,7 +133,11 @@ public class ModelerController {
 	        		.addBpmnModel(modelData.getKey()+".bpmn20.xml", model)
 	        		.deploy();
 	        modelData.setDeploymentId(deployment.getId());
-	        repositoryService.saveModel(modelData);
+			System.out.println("部署ID：" + deployment.getId());
+			System.out.println("部署名称：" + deployment.getName());
+			// 这个key并不是我们画流程里面的key
+			System.out.println("部署Key：" + deployment.getKey());
+			repositoryService.saveModel(modelData);
 	        map.put("code", "SUCCESS");
 		} catch (Exception e) {
 			logger.info("部署modelId:{}模型服务异常：{}",modelId,e);

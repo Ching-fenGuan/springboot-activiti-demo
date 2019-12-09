@@ -19,7 +19,7 @@ public class ProcessHistoryController {
     private ProcessHistoryService processHistoryService;
 
     /**
-     * Purpose：获取流程图并显示
+     * Purpose：获取流程图并显示，只有当该流程已经启动后才查得到
      *
      * @param processInstanceId 流程定义id
      * @param response
