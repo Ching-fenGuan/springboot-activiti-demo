@@ -12,6 +12,8 @@ import org.activiti.engine.impl.interceptor.CommandContext;
 import org.activiti.engine.impl.persistence.entity.ExecutionEntity;
 import org.activiti.engine.impl.persistence.entity.TaskEntity;
 import org.activiti.engine.impl.persistence.entity.TaskEntityManagerImpl;
+import org.activiti.engine.repository.ProcessDefinition;
+import org.activiti.engine.repository.ProcessDefinitionQuery;
 import org.activiti.engine.runtime.ProcessInstance;
 import org.activiti.engine.task.Task;
 import org.junit.Test;
@@ -45,8 +47,8 @@ public class MyTest extends WorkflowApplicationTests {
      1、新增流程--创建了一个空的模型：/create?name=模型名称&key=模型key
      2、绘制流程--在上面空模型的基础上打开流程设计器进行绘制:/editor?modelId=模型ID
      3、部署流程--流程配好后进行部署：/publish?modelId=模型ID
-     4、撤销流程--/revokePublish?modelId=模型ID
-     5、删除流程--/delete?modelId=模型ID
+     4、删除流程定义--/revokePublish?modelId=模型ID
+     5、删除流程模型--/delete?modelId=模型ID
      6、流程图流程跟踪--/process/history/getProcessImg/流程实例ID
      */
 
@@ -146,6 +148,7 @@ public class MyTest extends WorkflowApplicationTests {
                 .list();
         for(Task task :taskList){
             System.out.println("任务ID:"+task.getId());
+            System.out.println("流程定义ID:"+task.getProcessInstanceId());
             System.out.println("任务负责人:"+task.getAssignee());
             System.out.println("任务名称:"+task.getName());
         }
@@ -156,7 +159,7 @@ public class MyTest extends WorkflowApplicationTests {
      */
     @Test
     public void claimTask(){
-        String taskId="50002";
+        String taskId="7510";
         String userId="jingli";
         //校验该用户有没有拾取任务的资格
         Task task=taskService.createTaskQuery().taskId(taskId).taskCandidateUser(userId).singleResult();
@@ -300,6 +303,44 @@ public class MyTest extends WorkflowApplicationTests {
     }
 
     /**
+     归还组任务：个人如何不想办理组任务了，可以归还组任务
+     */
+    public void setAssigneeToGroupTask(){
+        //任务id
+        String taskId="62504";
+        //任务负责人id
+        String userId="lisi";
+        //校验是否为任务负责人，只有任务负责人才能归还组任务
+        Task task=taskService.createTaskQuery().taskId(taskId).taskAssignee(userId).singleResult();
+        if(task!=null){
+            //归还组任务，设置任务负责人为null
+            taskService.setAssignee(taskId,null);
+        }
+    }
+
+    /**
+     任务交接：任务负责人将任务委托给其他候选人办理
+     */
+    public void setAssigneeToCandidateUser(){
+        //任务id
+        String taskId="62504";
+        //任务负责人id
+        String userId="lisi";
+        //校验是否为任务负责人，只有任务负责人才能委托任务
+        Task task=taskService.createTaskQuery().taskId(taskId).taskAssignee(userId).singleResult();
+        if(task!=null){
+            //选择的委托人/候选人
+            String candidateUser="huangwu";
+            //校验该候选人用户有没有拾取任务的资格
+            Task task1=taskService.createTaskQuery().taskId(taskId).taskCandidateUser(candidateUser).singleResult();
+            if(task1!=null){
+                //交接任务给候选人
+                taskService.setAssignee(taskId,candidateUser);
+            }
+        }
+    }
+
+    /**
      当审批节点的不通过状态没有设置另外的连线时
      */
     public void doAudit(){
@@ -343,4 +384,83 @@ public class MyTest extends WorkflowApplicationTests {
      1、找到经理用户组---查找经理用户组里面的经理---找到员工部门id----根据经理id与部门id可以确定有哪些经理可以审批该员工的请假单---经理审批
      2、
      */
+
+
+
+    /**
+     流程定义的挂起、激活
+     某些情况需要将流程暂停而不是直接删除，操作流程定义为挂起状态
+     流程暂停后将不会再继续执行，流程实例的当前任务将报异常
+     */
+    @Test
+    public void ProcessDedinitionSuspendOrActive(){
+        //流程定义ID
+        String processDefinitionId="holiday:1:52504";
+        //获得流程定义
+        ProcessDefinition processDefinition=repositoryService.createProcessDefinitionQuery().processDefinitionId(processDefinitionId).singleResult();
+        //是否暂停
+        boolean suspend=processDefinition.isSuspended();
+        if(suspend){
+            //如果暂停则激活，这个流程定义下的所有流程实例都将激活
+            repositoryService.activateProcessDefinitionById(processDefinitionId,true,null);
+            System.out.println("流程定义："+processDefinitionId+"已激活");
+        }else{
+            //如果激活则挂起，这个流程定义下的所有流程实例都将挂起
+            repositoryService.suspendProcessDefinitionById(processDefinitionId,true,null);
+            System.out.println("流程定义："+processDefinitionId+"已挂起");
+        }
+    }
+
+    /**
+     流程实例的挂起、激活
+     某些情况需要将流程暂停而不是直接删除，操作流程实例为挂起状态
+     流程实例暂停后将不会再继续执行，流程实例的当前任务将报异常
+     */
+    @Test
+    public void ProcessInstanceSuspendOrActive(){
+        //流程实例ID
+        String processInstanceId="67501";
+        ProcessEngine processEngine = ProcessEngines.getDefaultProcessEngine();
+        RuntimeService runtimeService = processEngine.getRuntimeService();
+        //获得流程实例
+        ProcessInstance processInstance=runtimeService.createProcessInstanceQuery().processInstanceId(processInstanceId).singleResult();
+        System.out.println(processInstance);
+        //是否暂停
+        boolean suspend=processInstance.isSuspended();
+
+        System.out.println(suspend);
+        if(suspend){
+            //如果暂停则激活
+            runtimeService.activateProcessInstanceById(processInstanceId);
+            System.out.println("流程实例："+processInstanceId+"已激活");
+        }else{
+            //如果激活则挂起，这个流程实例将挂起
+            runtimeService.suspendProcessInstanceById(processInstanceId);
+            System.out.println("流程实例："+processInstanceId+"已挂起");
+        }
+    }
+
+
+    /**
+     查询流程定义信息
+     */
+    @Test
+    public void getProcessDefinition(){
+        //得到ProcessDefinitionQuery对象,可以认为它就是一个查询器
+        ProcessDefinitionQuery processDefinitionQuery = repositoryService.createProcessDefinitionQuery();
+        //设置条件，并查询出当前的所有流程定义   查询条件：流程定义的key=holidays
+        List<ProcessDefinition> list = processDefinitionQuery.processDefinitionKey("holidays")
+                .orderByProcessDefinitionVersion() //设置排序方式,根据流程定义的版本号进行排序
+                .desc().list();
+        //输出流程定义信息
+        for(ProcessDefinition processDefinition :list){
+            System.out.println("流程定义ID："+processDefinition.getId());
+            System.out.println("流程定义名称："+processDefinition.getName());
+            System.out.println("流程定义的Key："+processDefinition.getKey());
+            System.out.println("流程定义的版本号："+processDefinition.getVersion());
+            System.out.println("流程部署的ID:"+processDefinition.getDeploymentId());
+
+        }
+    }
+
 }

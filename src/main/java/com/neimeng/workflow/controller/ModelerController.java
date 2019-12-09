@@ -148,7 +148,7 @@ public class ModelerController {
     }
     
     /**
-     * 撤销流程定义
+     * 删除流程定义：act_ge_bytearray、act_re_deployment、act_re_procdef
      * @param modelId 模型ID
      * @return
      */
@@ -164,7 +164,8 @@ public class ModelerController {
 				 * 参数不加true:为普通删除，如果当前规则下有正在执行的流程，则抛异常 
 				 * 参数加true:为级联删除,会删除和当前规则相关的所有信息，包括历史 
 				 */
-				repositoryService.deleteDeployment(modelData.getDeploymentId(),true);
+				//repositoryService.deleteDeployment(modelData.getDeploymentId(),true);
+				repositoryService.deleteDeployment(modelData.getDeploymentId());
 				map.put("code", "SUCCESS");
 			} catch (Exception e) {
 				logger.error("撤销已部署流程服务异常：{}",e);
@@ -174,20 +175,45 @@ public class ModelerController {
 		logger.info("撤销发布流程出参map：{}",map);
         return map;
     }
-    
+	/**
+	 * 删除流程模型
+	 * @param modelId 模型ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/delete")
+	public Object delete(String modelId){
+		logger.info("删除流程模型modelId：{}",modelId);
+		Map<String, String> map = new HashMap<String, String>();
+		Model modelData = repositoryService.getModel(modelId);
+		try {
+			//删除流程定义,强制删除（级联删除）
+			repositoryService.deleteDeployment(modelData.getDeploymentId(),true);
+			//删除流程模型
+			repositoryService.deleteModel(modelId);
+			map.put("code", "SUCCESS");
+		} catch (Exception e) {
+			logger.error("删除流程模型异常：{}",e);
+			map.put("code", "FAILURE");
+		}
+		logger.info("删除流程模型出参map：{}",map);
+		return map;
+	}
+
     /**
-     * 删除流程实例
+     * 删除流程定义下的某个流程实例
      * @param modelId 模型ID
      * @return
      */
     @ResponseBody
-    @RequestMapping("/delete")
+    @RequestMapping("/deleteProcessInstance")
     public Object deleteProcessInstance(String modelId){
     	logger.info("删除流程实例入参modelId：{}",modelId);
     	Map<String, String> map = new HashMap<String, String>();
 		Model modelData = repositoryService.getModel(modelId);
 		if(null != modelData){
 			try {
+				//这里只删除了一个流程实例
 			   ProcessInstance pi = runtimeService.createProcessInstanceQuery().processDefinitionKey(modelData.getKey()).singleResult();
 			   if(null != pi) {
 				   runtimeService.deleteProcessInstance(pi.getId(), "");
@@ -224,9 +250,9 @@ public class ModelerController {
 
 			ObjectNode editorNode = sourceObjectNode.deepCopy();
 			ObjectNode properties = objectMapper.createObjectNode();
-			properties.put("process_id", model.getKey());
+			properties.put("process_id",editorNode.get("properties").get("process_id")+"_copy");
 			properties.put("process_author", "guanjf");
-			properties.put("name", model.getName());
+			properties.put("name", editorNode.get("properties").get("name")+"_copy");
 			editorNode.set("properties", properties);
 			repositoryService.addModelEditorSource(model.getId(), editorNode.toString().getBytes("utf-8"));
 		} catch (Exception e) {
