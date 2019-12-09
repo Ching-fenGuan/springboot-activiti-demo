@@ -29,6 +29,7 @@
 	             <a href="/publish?modelId=${model.id}">发布</a>
 	             <a href="/revokePublish?modelId=${model.id}">撤销</a>
 	             <a href="/delete?modelId=${model.id}">删除</a>
+				 <a href="/copy?modelId=${model.id}">复制</a>
 	            </td>
 	        </tr>
 	       </#list>
@@ -40,7 +41,6 @@
 <br>
 
 <h5>--------------------------------------- 流程图跟踪 -----------------------------------------</h5>
-<img src="/process/history/getProcessImg/40001" width="900px" height="500px">
 <img src="/process/history/getProcessImg/57501" width="900px" height="500px">
 
 </body>

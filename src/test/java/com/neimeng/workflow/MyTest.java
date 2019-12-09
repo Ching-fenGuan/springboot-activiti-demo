@@ -175,7 +175,8 @@ public class MyTest extends WorkflowApplicationTests {
     }
 
     /**
-     流程回退:这里是不是需要注意一下并行流程退回的问题？
+     流程回退：
+     这里是不是需要注意一下并行流程退回的问题？是否可以考虑用实例id来查询，如果该实例有两个及以上任务，则不可退回？
      */
     @Test
     public void rollbackTask(){
@@ -324,4 +325,22 @@ public class MyTest extends WorkflowApplicationTests {
             runtimeService.deleteProcessInstance(vacationAudit.getProcessInstanceId(), auditId);
         }
     }
+
+    /**
+     当前用户在处理自己的任务时，可以指定下一个任务的办理人，可以通过用户、用户组、指定类等来设置
+     具体见https://blog.csdn.net/qq_30739519/article/details/51225067
+     */
+
+    /**
+     设置多个审批人的话，可以用候选人的方式，
+     也可以在审批人的任务监听接口实现类中，添加多个审批人，详见https://blog.csdn.net/hichinamobile/article/details/53930078
+     */
+
+    /**
+        A部门的员工请假单要先提交给A部门经理审批，B部门的员工请假单要先提交给B部门经理审批，通过后再给总监审批。
+     这种情况如何保证经理审批环节指定到对应的部门经理那里？
+     用户、用户组------- 用户、角色
+     1、找到经理用户组---查找经理用户组里面的经理---找到员工部门id----根据经理id与部门id可以确定有哪些经理可以审批该员工的请假单---经理审批
+     2、
+     */
 }

@@ -202,4 +202,39 @@ public class ModelerController {
 		logger.info("删除流程实例出参map：{}",map);
         return map;
     }
+
+	/**
+	 复制流程
+	 @param modelId
+	 @return
+	 */
+	@RequestMapping("/copy")
+	public ModelAndView copy(String modelId){
+		try {
+			//获取源model
+			Model sourceModel = repositoryService.getModel(modelId);
+			ObjectNode sourceObjectNode =(ObjectNode)new ObjectMapper().readTree(repositoryService.getModelEditorSource(modelId));
+			Model model = repositoryService.newModel();
+			model.setKey(sourceModel.getKey() + "_copy");
+			model.setName(sourceModel.getName()+"_copy");
+			model.setMetaInfo(sourceModel.getMetaInfo());
+			model.setCategory(sourceModel.getCategory());
+			model.setVersion(1);
+			repositoryService.saveModel(model);
+
+			ObjectNode editorNode = sourceObjectNode.deepCopy();
+			ObjectNode properties = objectMapper.createObjectNode();
+			properties.put("process_id", model.getKey());
+			properties.put("process_author", "guanjf");
+			properties.put("name", model.getName());
+			editorNode.set("properties", properties);
+			repositoryService.addModelEditorSource(model.getId(), editorNode.toString().getBytes("utf-8"));
+		} catch (Exception e) {
+			logger.info("异常：{}",e);
+		}
+		ModelAndView modelAndView=new ModelAndView();
+		modelAndView.setViewName("index");
+		modelAndView.addObject("modelList", repositoryService.createModelQuery().list());
+		return modelAndView;
+	}
 }
