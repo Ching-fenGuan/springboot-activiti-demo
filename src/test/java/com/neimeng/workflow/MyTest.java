@@ -4,6 +4,8 @@ import org.activiti.bpmn.model.FlowNode;
 import org.activiti.bpmn.model.Process;
 import org.activiti.bpmn.model.SequenceFlow;
 import org.activiti.engine.*;
+import org.activiti.engine.identity.Group;
+import org.activiti.engine.identity.User;
 import org.activiti.engine.impl.cmd.NeedsActiveTaskCmd;
 import org.activiti.engine.impl.interceptor.Command;
 import org.activiti.engine.impl.interceptor.CommandContext;
@@ -18,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  @author guanjf
@@ -35,6 +38,9 @@ public class MyTest extends WorkflowApplicationTests {
     @Autowired
     private TaskService taskService;
 
+    @Autowired
+    private IdentityService identityService;
+
     /**流程设计及部署
      1、新增流程--创建了一个空的模型：/create?name=模型名称&key=模型key
      2、绘制流程--在上面空模型的基础上打开流程设计器进行绘制:/editor?modelId=模型ID
@@ -42,6 +48,12 @@ public class MyTest extends WorkflowApplicationTests {
      4、撤销流程--/revokePublish?modelId=模型ID
      5、删除流程--/delete?modelId=模型ID
      6、流程图流程跟踪--/process/history/getProcessImg/流程实例ID
+     */
+
+
+    /**
+     表设计原则：流程数据和业务数据相分离。Activiti相关表只负责流程的跳转、走向等。流程中产生的业务表单数据、审批意见、附件等存储在开发人员定义的业务表中。流程数据和业务数据之间通过processInstanceId(流程实例ID)和业务数据主键相互关联。
+     详情见DatasetProcessController数据集流程接口
      */
 
 
@@ -63,12 +75,14 @@ public class MyTest extends WorkflowApplicationTests {
         List<Task> taskList = taskService.createTaskQuery().processInstanceId(processInstance.getId()).list();
         String taskId = taskList.get(0).getId();
         taskService.setAssignee(taskId, assignee);
+       // taskService.setAssignee(processInstance.getId(),assignee);
         System.out.println("任务ID:" + taskId);
 
         //3、用户完成请假申请任务
         Map<String, Object> variables = new HashMap<>();
         variables.put("holidays",9);//请假天数
-        completeMyPersonalTask(taskId,variables);
+        //完成任务
+        taskService.complete(taskId, variables);
     }
 
     /**
@@ -233,6 +247,81 @@ public class MyTest extends WorkflowApplicationTests {
             executionEntity.setCurrentFlowElement(flows.get(0));
             commandContext.getAgenda().planTakeOutgoingSequenceFlowsOperation(executionEntity, true);
             return null;
+        }
+    }
+
+
+    /**
+     每个项目都有自己的用户、角色表，Activiti也有自己的用户、用户组表。
+     因此项目中的用户、角色与Activiti中的用户、用户组要做整合。
+     */
+    public void aboutUsers(){
+        //项目中每创建一个新用户，对应的要创建一个Activiti用户
+        //两者的userId和userName一致
+        User admin=identityService.newUser("1");
+        admin.setLastName("admin");
+        identityService.saveUser(admin);
+
+        //项目中每创建一个角色，对应的要创建一个Activiti用户组
+        Group adminGroup=identityService.newGroup("1");
+        adminGroup.setName("admin");
+        identityService.saveGroup(adminGroup);
+
+        //activiti的用户与用户组关系绑定
+        identityService.createMembership("1","1");
+    }
+
+    /**
+     根据用户组查询待办任务
+     */
+    public void doMyTask(){
+        String userId="1";
+        //查出当前登录用户所在的用户组
+        List<Group> groups = identityService.createGroupQuery()
+                .groupMember(userId).list();
+        List<String> groupNames = groups.stream()
+                .map(group -> group.getName()).collect(Collectors.toList());
+
+        //查询用户组的待办理任务
+        int pageNum=1;
+        int pageSize=20;
+        List<Task> tasks = taskService.createTaskQuery()
+                .processDefinitionKey("holidays")
+                .taskCandidateGroupIn(groupNames)
+                .listPage(pageNum - 1, pageSize);
+
+        //根据待办任务查询流程实例ID
+        List<String> processInstanceIds = tasks.stream()
+                .map(task -> task.getProcessInstanceId())
+                .collect(Collectors.toList());
+
+        //根据流程实例ID查询关联的业务数据
+    }
+
+    /**
+     当审批节点的不通过状态没有设置另外的连线时
+     */
+    public void doAudit(){
+        String taskId = "47504";
+        //审批表id
+        String auditId = "29703";
+        //查询当前审批节点
+        Task vacationAudit = taskService.createTaskQuery()
+                .taskId(taskId).singleResult();
+        int statusResult=1;
+        if (statusResult == 1) {//审批通过
+            //设置流程参数：审批结果ID
+            Map<String, Object> args = new HashMap<>();
+            args.put("status", auditId);
+
+            //设置审批任务的执行人
+            String userId="1";
+            taskService.claim(vacationAudit.getId(), userId);
+            //执行人完成审批任务
+            taskService.complete(vacationAudit.getId(), args);
+        } else {
+            //审批不通过，结束流程
+            runtimeService.deleteProcessInstance(vacationAudit.getProcessInstanceId(), auditId);
         }
     }
 }
