@@ -4,6 +4,8 @@ import org.activiti.bpmn.model.FlowNode;
 import org.activiti.bpmn.model.Process;
 import org.activiti.bpmn.model.SequenceFlow;
 import org.activiti.engine.*;
+import org.activiti.engine.history.HistoricActivityInstance;
+import org.activiti.engine.history.HistoricActivityInstanceQuery;
 import org.activiti.engine.identity.Group;
 import org.activiti.engine.identity.User;
 import org.activiti.engine.impl.cmd.NeedsActiveTaskCmd;
@@ -42,6 +44,9 @@ public class MyTest extends WorkflowApplicationTests {
 
     @Autowired
     private IdentityService identityService;
+
+    @Autowired
+    private HistoryService historyService;
 
     /**流程设计及部署
      1、新增流程--创建了一个空的模型：/create?name=模型名称&key=模型key
@@ -256,8 +261,42 @@ public class MyTest extends WorkflowApplicationTests {
 
 
     /**
+    查询流程实例的历史完成任务：
+     1、activeType多个值如何查
+     2、某个任务之前重复走了几次，是是都显示，还是只显示其中一条好
+     */
+    @Test
+    public  void getHistoryList(){
+        //组装查询条件
+        HistoricActivityInstanceQuery query=historyService.createHistoricActivityInstanceQuery();
+        //流程实例id即act_hi_procinst表的id
+        query.processInstanceId("2501");
+        //这里查询的是历史活动信息，即包含了任务以外的流程活动，如开始事件和结束事件,可用activeType进行筛选
+        query.activityType("userTask");
+        //只查已完成状态
+        query.finished();
+        //按结束时间排序，最近的在前
+        query.orderByHistoricActivityInstanceEndTime().desc();
+        List<HistoricActivityInstance> list=query.list();
+        for(HistoricActivityInstance hai:list){
+            System.out.println("===========新的节点任务==============");
+            System.out.println("任务开始时间："+hai.getStartTime());
+            System.out.println("任务节点id："+hai.getActivityId());
+            System.out.println("任务名称："+hai.getActivityName());
+            System.out.println("任务节点类型："+hai.getActivityType());
+            System.out.println("任务处理人："+hai.getAssignee());
+            System.out.println("流程实例id："+hai.getProcessInstanceId());
+            System.out.println("流程定义id："+hai.getProcessDefinitionId());
+            System.out.println("任务id："+hai.getTaskId());
+            System.out.println("任务结束时间："+hai.getEndTime());
+        }
+    }
+
+    /**
      每个项目都有自己的用户、角色表，Activiti也有自己的用户、用户组表。
      因此项目中的用户、角色与Activiti中的用户、用户组要做整合。
+     不过这样的话，如果遇到部门组织比较复杂的就不能准确控制权限了
+     是否不用其自带的用户，直接在流转过程中指定办理人？
      */
     public void aboutUsers(){
         //项目中每创建一个新用户，对应的要创建一个Activiti用户
