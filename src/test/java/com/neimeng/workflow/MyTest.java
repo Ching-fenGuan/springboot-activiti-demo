@@ -1,8 +1,7 @@
 package com.neimeng.workflow;
 
-import org.activiti.bpmn.model.FlowNode;
+import org.activiti.bpmn.model.*;
 import org.activiti.bpmn.model.Process;
-import org.activiti.bpmn.model.SequenceFlow;
 import org.activiti.engine.*;
 import org.activiti.engine.history.HistoricActivityInstance;
 import org.activiti.engine.history.HistoricActivityInstanceQuery;
@@ -18,11 +17,13 @@ import org.activiti.engine.impl.persistence.entity.TaskEntity;
 import org.activiti.engine.impl.persistence.entity.TaskEntityManagerImpl;
 import org.activiti.engine.repository.ProcessDefinition;
 import org.activiti.engine.repository.ProcessDefinitionQuery;
+import org.activiti.engine.runtime.Execution;
 import org.activiti.engine.runtime.ProcessInstance;
 import org.activiti.engine.task.Task;
 import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -99,7 +100,7 @@ public class MyTest extends WorkflowApplicationTests {
      */
     @Test
     public void findMyPersonalTask() {
-        String assignee = "zongjian";
+        String assignee = "renshi";
         // 查询新处理人的任务
         List<Task> list = taskService
                 .createTaskQuery()//创建任务查询对象
@@ -270,9 +271,7 @@ public class MyTest extends WorkflowApplicationTests {
 
 
     /**
-    查询流程实例的历史完成任务：
-     1、activeType多个值如何查?
-     2、某个任务之前重复走了几次，是是都显示，还是只显示其中一条好?
+    查询流程实例的历史完成任务
      */
     @Test
     public  void getHistoryList(){
@@ -337,7 +336,7 @@ public class MyTest extends WorkflowApplicationTests {
      每个项目都有自己的用户、角色表，Activiti也有自己的用户、用户组表。
      因此项目中的用户、角色与Activiti中的用户、用户组要做整合。
      不过这样的话，如果遇到部门组织比较复杂的就不能准确控制权限了
-     是否不用其自带的用户，直接在流转过程中指定办理人？
+     是否不用其自带的用户，直接在流转过程中指定办理人或办理部门或办理角色？
      */
     public void aboutUsers(){
         //项目中每创建一个新用户，对应的要创建一个Activiti用户
@@ -541,6 +540,53 @@ public class MyTest extends WorkflowApplicationTests {
             System.out.println("流程部署的ID:"+processDefinition.getDeploymentId());
 
         }
+    }
+
+    /**
+     该功能没有测试
+     获取当前任务的下一节点任务信息:
+     1、如果下一节点为用户任务UserTask，则直接返回,
+     2、如果下一个节点不是用户任务UserTask，需要另做处理
+     */
+    @Test
+    public void getNextTaskGroup(){
+        List<UserTask> taskList=new ArrayList<UserTask>();
+        //当前任务id
+        String taskId="15005";
+        //如果没有流程实例id，要先获取流程实例Id信息
+        String processInstanceId = taskService.createTaskQuery().taskId(taskId).singleResult().getProcessInstanceId();
+        //获取流程定义ID  
+        String processDefinitionId=runtimeService.createProcessInstanceQuery().processInstanceId(processInstanceId).singleResult().getProcessDefinitionId();
+        Execution execution=runtimeService.createProcessInstanceQuery().processInstanceId(processInstanceId).singleResult();
+        //当前流程节点Id
+        String activityId=execution.getActivityId();
+        //根据活动节点获取当前的组件信息
+        FlowNode flowNode =getFlowNode(processDefinitionId,activityId);
+        //获取该流程组件的之后/之前的组件信息
+        List<SequenceFlow> sequenceFlowOutGoingList=flowNode.getOutgoingFlows();
+        //List<SequenceFlow> sequenceFlowIncomingList=flowNode.getIncomingFlows();
+        for(SequenceFlow sequenceFlow :sequenceFlowOutGoingList){
+            FlowElement flowElement =sequenceFlow.getTargetFlowElement();
+            if (flowElement instanceof UserTask){
+                UserTask userTask =(UserTask)flowElement;
+                System.out.println("下一环节id："+userTask.getId());
+                System.out.println("下一环节名称："+userTask.getName());
+                System.out.println("下一环节办理人："+userTask.getAssignee());
+                System.out.println("下一环节候选人："+userTask.getCandidateUsers());
+                System.out.println("下一环节候选组："+userTask.getCandidateGroups());
+                taskList.add(userTask);
+                break;
+            }
+        }
+    }
+
+    /**
+     根据活动节点和流程定义ID获取该活动节点的组件信息
+     */
+    public FlowNode getFlowNode(String processDefinitionId,String activityId) {
+        BpmnModel bpmnModel = repositoryService.getBpmnModel(processDefinitionId);
+        FlowNode flowNode = (FlowNode) bpmnModel.getMainProcess().getFlowElement(activityId);
+        return flowNode;
     }
 
 }

@@ -132,7 +132,6 @@ public class DatasetProcessService {
 
         // 记录当前任务审批相关信息
         saveTaskApprovalInfo(processApproval, currentUser, task);
-
         // 更新流程状态(判断流程是否已经结束，如果流程已经结束，则更新流程状态)
         updateProcessStatus(task.getProcessInstanceId());
     }
