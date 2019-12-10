@@ -6,6 +6,8 @@ import org.activiti.bpmn.model.SequenceFlow;
 import org.activiti.engine.*;
 import org.activiti.engine.history.HistoricActivityInstance;
 import org.activiti.engine.history.HistoricActivityInstanceQuery;
+import org.activiti.engine.history.HistoricTaskInstance;
+import org.activiti.engine.history.HistoricTaskInstanceQuery;
 import org.activiti.engine.identity.Group;
 import org.activiti.engine.identity.User;
 import org.activiti.engine.impl.cmd.NeedsActiveTaskCmd;
@@ -88,7 +90,7 @@ public class MyTest extends WorkflowApplicationTests {
         //3、用户完成请假申请任务
         Map<String, Object> variables = new HashMap<>();
         variables.put("holidays",9);//请假天数
-        //完成任务
+        //处理任务并设置global变量(全局变量)
         taskService.complete(taskId, variables);
     }
 
@@ -121,19 +123,26 @@ public class MyTest extends WorkflowApplicationTests {
 
 
     /**
-     * 完成任务
+     * 完成任务，设置了local变量和global变量
+     * 需要注意一下local变量和global变量的区别
+     * global变量：是针对processInstance的，通过流程或者任务查询均可以查询到。但是设置流程变量的时候，流程变量名称相同的时候，后一次的值替换前一次的值。设置有多种方式。
+     * local变量：是针对于execution、task。设置局部变量，local变量的好处是，可以在每个分支使用同名的变量，互相之间不受影响，会签multi-instance就是通过local局部变量实现的。
      */
     @Test
     public void doTask() {
-        String taskId="52504";
+        String taskId="5005";
         Map<String, Object> variables = new HashMap<>();
-        variables.put("status2",0);//不同意
-        taskService.complete(taskId, variables);
+        variables.put("test","local_value");
+        //设置local变量taskService.setVariableLocal(taskId, "local变量", 3)
+        taskService.setVariablesLocal(taskId,variables);
+        variables.put("status2",1);
+        //完成任务，同时设置了global变量
+        taskService.complete(taskId,variables);
         System.out.println("完成任务，任务ID = ：" + taskId);
     }
 
     /**
-     * 完成任务
+     * 完成任务,设置了global变量
      */
     public void completeMyPersonalTask(String taskId, Map<String, Object> variables ) {
         taskService.complete(taskId, variables);
@@ -262,8 +271,8 @@ public class MyTest extends WorkflowApplicationTests {
 
     /**
     查询流程实例的历史完成任务：
-     1、activeType多个值如何查
-     2、某个任务之前重复走了几次，是是都显示，还是只显示其中一条好
+     1、activeType多个值如何查?
+     2、某个任务之前重复走了几次，是是都显示，还是只显示其中一条好?
      */
     @Test
     public  void getHistoryList(){
@@ -289,6 +298,38 @@ public class MyTest extends WorkflowApplicationTests {
             System.out.println("流程定义id："+hai.getProcessDefinitionId());
             System.out.println("任务id："+hai.getTaskId());
             System.out.println("任务结束时间："+hai.getEndTime());
+        }
+    }
+
+
+
+    @Test
+    public  void getHistoryTaskList(){
+        //查询条件
+        HistoricTaskInstanceQuery query=historyService.createHistoricTaskInstanceQuery();
+        //查询结果要包含local变量:
+        query.includeTaskLocalVariables();
+        //包含global变量:
+        query.includeProcessVariables();
+        //流程实例id即act_hi_procinst表的id
+        query.processInstanceId("2501");
+        //任务已完成状态
+        query.finished();
+        //按结束时间排序，最近的在前
+        query.orderByHistoricTaskInstanceEndTime().desc();
+        List<HistoricTaskInstance> list=query.list();
+        for(HistoricTaskInstance hti:list){
+            System.out.println("=========================");
+            System.out.println("开始时间："+hti.getStartTime());
+            System.out.println("任务id："+hti.getId());
+            System.out.println("任务名称："+hti.getName());
+            System.out.println("上一任务id："+hti.getParentTaskId());
+            System.out.println("执行人："+hti.getAssignee());
+            System.out.println("流程实例id："+hti.getProcessInstanceId());
+            System.out.println("流程定义id："+hti.getProcessDefinitionId());
+            System.out.println("local变量："+hti.getTaskLocalVariables());
+            System.out.println("全局变量："+hti.getProcessVariables());
+            System.out.println("结束时间："+hti.getEndTime());
         }
     }
 
